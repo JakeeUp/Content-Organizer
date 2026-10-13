@@ -1,0 +1,57 @@
+# Content Organizer default configuration.
+#
+# Copy any section into your user config file (run `content-organizer doctor` to see
+# where it lives) to override it. Tables are merged key by key; lists replace the
+# default list entirely.
+
+# Extension -> media type. The extension always decides the media type first.
+[extensions]
+video = [".mp4", ".mov", ".m4v", ".avi", ".mkv", ".webm", ".flv", ".wmv", ".mts", ".m2ts", ".3gp"]
+image = [".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp", ".heic", ".tif", ".tiff"]
+audio = [".mp3", ".wav", ".flac", ".m4a", ".aac", ".ogg", ".opus", ".aif", ".aiff", ".wma"]
+project = [".prproj", ".aep", ".aepx", ".mogrt"]
+
+# Naming tags: whole tokens in the file name (split on _ - . and spaces),
+# case-insensitive. "clip_vert.mp4" matches "vert"; "vertigo.mp4" does not.
+# A tag only applies when the file's media type matches the category
+# (audio tags only refine audio, video tags only refine video).
+# When several tags match, the first category listed here wins.
+[tags]
+FinalizedVideos = ["final"]
+GreenscreenEffects = ["greenscreen", "green", "chroma"]
+VerticalVideos = ["vertical", "vert", "9x16"]
+HorizontalVideos = ["horizontal", "horiz", "16x9"]
+SoundEffects = ["sfx", "soundeffect", "sound"]
+Music = ["music", "song"]
+
+# Output folder name per category. Change these to rename folders.
+[folders]
+VerticalVideos = "VerticalVideos"
+HorizontalVideos = "HorizontalVideos"
+Videos = "Videos"
+GreenscreenEffects = "GreenscreenEffects"
+FinalizedVideos = "FinalizedVideos"
+Images = "Images"
+Music = "Music"
+SoundEffects = "SoundEffects"
+Audio = "Audio"
+PremiereProjects = "PremiereProjects"
+Other = "Other"
+
+[layout]
+# Categories that get YYYY/MM - MonthName subfolders when date folders are enabled.
+date_categories = ["VerticalVideos", "HorizontalVideos", "Videos", "FinalizedVideos"]
+
+[scan]
+# Files matching these patterns (case-insensitive glob on the file name) are left alone.
+skip_files = [
+    "desktop.ini", "thumbs.db", ".ds_store", "._*", "~$*",
+    "*.part", "*.crdownload", "*.tmp", "*.partial", "*.download",
+    "*.pek", "*.cfa", "*.ims",   # Adobe media cache / conform files
+]
+# Directories matching these patterns are not descended into.
+skip_dirs = [
+    "$recycle.bin", "system volume information",
+    "adobe premiere pro auto-save", "adobe premiere pro audio previews",
+    "adobe premiere pro video previews", "media cache files", "media cache",
+]
