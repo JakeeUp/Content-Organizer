@@ -26,3 +26,14 @@ Thumbs.db
 ffmpeg/
 test_output/
 organizer.log
+
+# Tooling
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
