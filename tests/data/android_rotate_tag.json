@@ -1,0 +1,13 @@
+{
+    "streams": [
+        {
+            "index": 0,
+            "codec_name": "h264",
+            "codec_type": "video",
+            "width": 1280,
+            "height": 720,
+            "tags": {"rotate": "270", "creation_time": "1970-01-01T00:00:00.000000Z"}
+        }
+    ],
+    "format": {"duration": "4.000000", "tags": {"creation_time": "1970-01-01T00:00:00.000000Z"}}
+}

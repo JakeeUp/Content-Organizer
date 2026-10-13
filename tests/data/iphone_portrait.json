@@ -1,0 +1,36 @@
+{
+    "streams": [
+        {
+            "index": 0,
+            "codec_name": "hevc",
+            "codec_type": "video",
+            "width": 1920,
+            "height": 1080,
+            "sample_aspect_ratio": "1:1",
+            "display_aspect_ratio": "16:9",
+            "duration": "12.345000",
+            "disposition": {"default": 1, "attached_pic": 0},
+            "tags": {
+                "creation_time": "2024-03-05T18:22:41.000000Z",
+                "handler_name": "Core Media Video"
+            },
+            "side_data_list": [
+                {
+                    "side_data_type": "Display Matrix",
+                    "displaymatrix": "\n00000000:            0       65536           0\n00000001:       -65536           0           0\n00000002:            0           0  1073741824\n",
+                    "rotation": -90
+                }
+            ]
+        }
+    ],
+    "format": {
+        "filename": "IMG_0042.MOV",
+        "format_name": "mov,mp4,m4a,3gp,3g2,mj2",
+        "duration": "12.345000",
+        "tags": {
+            "major_brand": "qt  ",
+            "creation_time": "2024-03-05T18:22:41.000000Z",
+            "com.apple.quicktime.make": "Apple"
+        }
+    }
+}
