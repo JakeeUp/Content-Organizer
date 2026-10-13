@@ -1,0 +1,66 @@
+name: Bug report
+description: Something went wrong (a file ended up in the wrong place, a crash, a UI glitch).
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! Please **do not attach private media**. File names and the
+        output of `content-organizer doctor` are usually enough.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you expect, and what happened instead?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Put `clip_vert.mp4` in the inbox
+        2. Run `content-organizer organize inbox out --dry-run`
+        3. ...
+    validations:
+      required: true
+  - type: dropdown
+    id: interface
+    attributes:
+      label: Interface
+      options:
+        - GUI (ContentOrganizer.exe / content-organizer-gui)
+        - CLI (content-organizer)
+    validations:
+      required: true
+  - type: textarea
+    id: doctor
+    attributes:
+      label: Output of `content-organizer doctor`
+      render: text
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      placeholder: "content-organizer --version"
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options: [Windows, macOS, Linux]
+    validations:
+      required: true
+  - type: textarea
+    id: log
+    attributes:
+      label: Relevant log lines
+      description: The log path is printed by `content-organizer doctor`. Remove personal paths if you like.
+      render: text
+  - type: checkboxes
+    id: data
+    attributes:
+      label: Data safety
+      options:
+        - label: Files were lost or overwritten (we treat this as top priority)

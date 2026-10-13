@@ -1,0 +1,28 @@
+name: Feature request
+description: Suggest a new rule, category, or workflow improvement.
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem would this solve?
+      description: Describe your workflow and where Content Organizer gets in the way.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: e.g. a new naming tag, a config option, a GUI change.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Can a `config.toml` change already do this? (see `content-organizer doctor` for its location)
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options: [Categorisation rules, Config, CLI, GUI, Packaging / install, Other]
