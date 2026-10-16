@@ -92,7 +92,7 @@ Categories are an enum, so adding one touches a few places:
 1. **`categories.py`:** add a member to `Category` (its value is the default folder name), and an entry in both `CATEGORY_MEDIA` and `CATEGORY_LABELS`. If the rules can't place files in it confidently, consider adding it to `REVIEW_CATEGORIES`.
 2. **`defaults.toml`:** add it to `[folders]`, add it to `[tags]` if it is tag-driven, and add it to `[layout] date_categories` if it should get date folders.
 3. **`rules.py`:** only if it is reached by something *other* than a tag. For example, a new orientation bucket would need a branch in `categorize()` and probably a new `Orientation` value in `probe.py`.
-4. **GUI:** give it a colour and a row in the dashboard and category list, and make sure the review dialog offers it.
+4. **GUI:** give it a colour in both palettes in `theme.py`, and make sure the Library breakdown and the Review page offer it.
 5. **Tests:** rules (how files reach it), planner (folder, date layout), config (folder override), stats (counted correctly).
 6. **Docs:** the category tables in `README.md` and `docs/configuration.md`, plus a CHANGELOG entry.
 

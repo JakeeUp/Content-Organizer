@@ -14,7 +14,7 @@ from pathlib import Path
 
 from content_organizer.categories import REVIEW_CATEGORIES, Category
 from content_organizer.config import Config
-from content_organizer.executor import Mode, RunResult, UndoResult
+from content_organizer.executor import Mode, RunResult, UndoResult, list_journals, read_journal
 from content_organizer.planner import Plan
 from content_organizer.scanner import scan
 
@@ -263,6 +263,81 @@ def _relative_folder(folder: Path, root: Path | None) -> str:
         except ValueError:
             pass
     return str(folder)
+
+
+def review_reason(category: Category | None) -> str:
+    if category is Category.VIDEOS:
+        return "Orientation could not be detected. Is it vertical, horizontal or finished?"
+    if category is Category.OTHER:
+        return "Unrecognised file type. Choose where it belongs, or skip it."
+    return ""
+
+
+# ---------------------------------------------------------------- recent runs
+
+
+@dataclass(frozen=True)
+class RunRecord:
+    """One undoable run, read from its journal."""
+
+    journal: Path
+    started: datetime | None
+    mode: str
+    files: int
+    source: str
+
+    @property
+    def title(self) -> str:
+        verb = "Copied" if self.mode == Mode.COPY.value else "Moved"
+        return f"{verb} {plural(self.files, 'file')}"
+
+
+def _parse_started(value: object) -> datetime | None:
+    try:
+        return datetime.fromisoformat(str(value))
+    except ValueError:
+        return None
+
+
+def recent_runs(output: Path, limit: int = 5) -> list[RunRecord]:
+    """The newest undoable runs first (reads at most ``limit`` journals)."""
+    try:
+        journals = list_journals(output)
+    except OSError:
+        return []
+    records = []
+    for journal in reversed(journals[-limit:]):
+        try:
+            header, ops = read_journal(journal)
+        except OSError:
+            continue
+        records.append(
+            RunRecord(
+                journal=journal,
+                started=_parse_started(header.get("started", "")),
+                mode=str(header.get("mode", Mode.MOVE.value)),
+                files=len(ops),
+                source=str(header.get("source", "")),
+            )
+        )
+    return records
+
+
+def format_when(when: datetime | None, now: datetime | None = None) -> str:
+    """``Today, 18:40`` / ``Yesterday, 09:12`` / ``Oct 3, 18:40`` / ``Oct 3, 2024``."""
+    if when is None:
+        return "Unknown time"
+    now = now or datetime.now(when.tzinfo)
+    days = (now.date() - when.date()).days
+    clock = when.strftime("%H:%M")
+    if days == 0:
+        return f"Today, {clock}"
+    if days == 1:
+        return f"Yesterday, {clock}"
+    month_day = f"{when.strftime('%b')} {when.day}"
+    if when.year == now.year:
+        return f"{month_day}, {clock}"
+    return f"{month_day}, {when.year}"
 
 
 def counts_text(counts: Iterable[tuple[Category, int]]) -> str:

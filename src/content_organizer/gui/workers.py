@@ -32,6 +32,7 @@ from content_organizer.ffmpeg_install import (
     UnsupportedPlatformError,
     install_ffmpeg,
 )
+from content_organizer.gui.presenters import review_files
 from content_organizer.planner import Options, Plan, PlanError, build_plan
 from content_organizer.probe import Prober
 from content_organizer.stats import LibraryStats, library_stats
@@ -143,6 +144,17 @@ class StatsTask(Task):
 
     def work(self) -> LibraryStats:
         return library_stats(self.folder, self.config, cancel=self.cancel_event)
+
+
+class ReviewScanTask(Task):
+    """Lists the files waiting in the output's review folders."""
+
+    def __init__(self, output: Path, config: Config) -> None:
+        super().__init__()
+        self.output, self.config = output, config
+
+    def work(self) -> list[Path]:
+        return review_files(self.output, self.config)
 
 
 class UndoTask(Task):

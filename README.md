@@ -116,15 +116,18 @@ $ content-organizer doctor
 content-organizer-gui        # or: python -m content_organizer.gui
 ```
 
-1. **Choose folders.** Drag a folder onto the **Source folder** (your inbox) and **Output folder** fields, paste a path, or click **Browse…**. Each field checks the path as you type: it shows how many files are ready to sort, says that a missing output folder will be created, and warns you if the output sits inside the source.
-2. **Set the options:** *Video analysis* (ffprobe), *Date folders*, *Clean names* and *Copy instead of move*. If FFmpeg is missing, a banner explains what that means. On Windows the banner has an **Install FFmpeg** button, and on macOS and Linux it shows how to install it. **Not now** hides the banner for good.
-3. **Click Preview & Organize… (Ctrl+Enter).** Every planned move appears in a table you can filter by category or file name. Files that need review and possible duplicates are marked. Nothing has changed yet. Click **Organize N files** to go ahead, or **Back** to cancel.
-4. **Watch it run.** The progress bar shows the current file. **Cancel** (or **Esc**) stops after the current file, and files already done stay done and are in the journal. When it finishes you get a summary (moved, duplicates skipped, failures), **Show details**, and a **Review N files now** link.
-5. **Review files… (Ctrl+R)** goes through everything in `Videos` and `Other` one file at a time. Images show a preview. Press the **number key** on a category button to file the current file, **→**/**S** to skip, **←** to go back, and **O** to open the file. Each move made here is journaled as its own small run, so **Undo last run** takes back the most recent review move first.
-6. **Undo last run (Ctrl+Z)** asks for confirmation, then puts the files from the newest run back. **Open output folder** (Ctrl+Shift+O) opens the result in your file manager.
-7. **Library dashboard:** the right-hand card shows the output library's total and a bar for each category. **Monthly distribution** charts files per month: click a point (or use ←/→ and Enter) to open that month's folder. **Refresh** or **F5** rescans.
+The window has a sidebar with four pages: **Organize**, **Library**, **Review** and **Settings** (**Ctrl+1**–**Ctrl+4**). On narrow windows the sidebar shrinks to icons. The status line at the bottom of the sidebar shows whether video analysis is available; click it to open Settings.
 
-The menus have the same actions: **File** (Open Output Folder, Open Config Folder, Quit), **Run** (Preview & Organize, Review Files, Undo Last Run, Refresh Library, Cancel) and **Help** (Install FFmpeg, Open Log Folder, About). The app remembers your last folders and options.
+1. **Choose folders** on the Organize page. Drag a folder onto the **Source folder** (your inbox) and **Output folder** fields, paste a path, or click **Browse…**. Each field checks the path as you type: it shows how many files are ready to sort, says that a missing output folder will be created, and warns you if the output sits inside the source.
+2. **Set the options:** *Video analysis* (ffprobe), *Date folders*, *Clean names* and *Copy instead of move*. They are saved as soon as you change them. If FFmpeg is missing, a notice explains what that means. On Windows it has an **Install FFmpeg** button, and on macOS and Linux it shows how to install it. **Not now** hides the notice for good.
+3. **Click Preview & organize… (Ctrl+Enter).** Every planned move appears in a table you can filter by category chips or file name. Files that need review and possible duplicates are marked. Nothing has changed yet. Click **Organize N files** to go ahead, or **Back** to cancel.
+4. **Watch it run.** The Activity card shows progress and the current file. **Cancel** (or **Esc**) stops after the current file, and files already done stay done and are in the journal. When it finishes you get a summary (moved, duplicates skipped, failures), **Show details**, and a **Review N files now** link.
+5. **Recent runs** lists the latest runs for the output folder. **Undo latest** (or **Ctrl+Z**) asks for confirmation, then puts the files from the newest run back.
+6. **Review (Ctrl+R)** goes through everything in `Videos` and `Other` one file at a time; the sidebar badge shows how many are waiting. Images show a preview. Press the **number key** on a category button to file the current file, **→**/**S** to skip, **←** to go back, and **O** to open the file. Each move made here is journaled as its own small run, so Undo takes back the most recent review move first.
+7. **Library** shows the output folder's totals, a **Monthly distribution** chart (click a bar, or use ←/→ and Enter, to open that month's folder) and a per-category breakdown. **Refresh** or **F5** rescans; **Open folder** (Ctrl+Shift+O) opens it in your file manager.
+8. **Settings** switches between System, Light and Dark appearance, installs or re-detects FFmpeg, and opens the config and log folders.
+
+The menus have the same actions: **File** (Open Output Folder, Quit), **Run** (Preview & Organize, Review Files, Undo Last Run, Refresh Library, Cancel), **View** (the four pages) and **Help** (Install FFmpeg, About). The app remembers your folders, options, appearance and last page.
 
 ### Command line
 
@@ -334,7 +337,7 @@ src/content_organizer/
 ├── scanner.py           # safe directory walk (skips, pruning, sorted output)
 ├── planner.py           # build a Plan of moves without touching files
 ├── executor.py          # apply a Plan, SHA-256 duplicate check, journal, undo
-├── stats.py             # per-category / per-month library stats (dashboard)
+├── stats.py             # per-category / per-month library stats (Library page)
 ├── config.py            # TOML config: defaults.toml + user overrides, validated
 ├── defaults.toml        # built-in extensions, tags, folders, skip lists
 ├── ffmpeg_install.py    # Windows one-click FFmpeg download (SHA-256 verified)
@@ -342,14 +345,15 @@ src/content_organizer/
 ├── cli.py               # argparse CLI: organize / undo / stats / doctor
 └── gui/                 # PyQt6 desktop app (the only package that imports Qt)
     ├── app.py           # QApplication bootstrap, entry point for content-organizer-gui
-    ├── main_window.py   # dashboard window, menus, settings, wiring
+    ├── main_window.py   # shell: sidebar, page stack, menus and shortcuts
+    ├── context.py       # AppContext: shared settings, options, ffprobe, tasks, review count
+    ├── pages/           # organize, library, review and settings pages
     ├── preview_dialog.py  # filterable dry-run table + confirm
-    ├── review_dialog.py # one-file-at-a-time review queue with shortcuts
-    ├── panels.py        # activity, library and FFmpeg-banner panels
+    ├── ffmpeg_setup.py  # FFmpeg download flow with a progress dialog
     ├── workers.py       # background tasks wrapping plan / execute / undo / stats / install
     ├── presenters.py    # Qt-free view-model text and validation (unit-tested)
-    ├── theme.py, icons.py
-    └── widgets/         # toggle, ring chart, monthly chart, category bars, folder field, ...
+    ├── theme.py, icons.py  # light/dark palettes, style sheet, theme-aware SVG icons
+    └── widgets/         # sidebar, cards, folder field, monthly chart, plan table, ...
 tests/                   # pytest suite (+ tests/gui with pytest-qt); real-ffmpeg tests marked `ffmpeg`
 docs/                    # architecture, configuration reference, screenshot
 packaging/               # PyInstaller entry script for the Windows exe / macOS app

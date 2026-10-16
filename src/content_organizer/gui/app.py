@@ -6,7 +6,7 @@ import logging
 import sys
 from collections.abc import Sequence
 
-from PyQt6.QtCore import QCoreApplication, Qt
+from PyQt6.QtCore import QCoreApplication, QSettings, Qt
 from PyQt6.QtGui import QGuiApplication
 from PyQt6.QtWidgets import QApplication
 
@@ -34,7 +34,7 @@ def create_application(argv: Sequence[str] | None = None) -> QApplication:
     QGuiApplication.setApplicationDisplayName(theme.APP_DISPLAY_NAME)
     QGuiApplication.setDesktopFileName("content-organizer")
     app.setWindowIcon(icons.app_icon())
-    theme.apply_theme(app)
+    theme.apply_theme(app, str(QSettings().value(theme.SETTINGS_KEY, theme.Appearance.SYSTEM)))
     return app
 
 

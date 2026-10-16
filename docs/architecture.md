@@ -13,11 +13,11 @@ Content Organizer is a small application split into layers: a **pure, Qt-free co
 | Discovery | `scanner` | Sorted, safe directory walk: skips, pruning, the journal folder | reads dirs |
 | Planning | `planner` | Builds a `Plan` of `PlannedMove(src, dest, category, reason)`, and resolves collisions inside the plan | `stat` + probe only |
 | Execution | `executor` | Applies a `Plan` (move or copy), checks duplicates by SHA-256, writes the JSON-lines journal, undo | **writes files** |
-| Insights | `stats` | Per-category and per-month counts of a folder for the dashboard and `stats` (no ffprobe) | reads dirs |
+| Insights | `stats` | Per-category and per-month counts of a folder for the Library page and `stats` (no ffprobe) | reads dirs |
 | Setup | `ffmpeg_install` | Windows-only FFmpeg download: streamed, cancellable, SHA-256 verified | network, writes |
 | Setup | `logging_setup` | Rotating log file in the per-user log dir. Only entry points call it | writes log |
 | Front end | `cli` | `organize`, `undo`, `stats`, `doctor`, and exit codes | stdout |
-| Front end | `gui/` | PyQt6 app: `main_window`, `preview_dialog`, `review_dialog`, `panels`, `widgets/`. `workers` run core calls off the UI thread and turn callbacks into signals. `presenters` hold the Qt-free view-model text and validation | Qt |
+| Front end | `gui/` | PyQt6 app: `main_window` (sidebar shell), `pages/` (Organize, Library, Review, Settings) sharing state through `context.AppContext`, `preview_dialog`, `widgets/`. `workers` run core calls off the UI thread and turn callbacks into signals. `presenters` hold the Qt-free view-model text and validation | Qt |
 
 The dependency direction is strictly downward: `gui`/`cli` → `executor`/`planner`/`stats` → `scanner`/`probe`/`rules` → `config` → `categories`. Nothing in the core imports `gui`, and nothing in the core imports Qt.
 

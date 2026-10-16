@@ -159,12 +159,15 @@ def test_ffmpeg_install_task_unsupported_platform(qtbot, tmp_path):
 
 def test_window_install_flow_enables_video_analysis(qtbot, make_window, tmp_path, message_boxes):
     window = make_window(ffprobe=None)
-    assert not window.video_option.isEnabled()
-    task = window.start_ffmpeg_install(
+    video = window.organize.option_rows["video"]
+    assert not video.isEnabled()
+    task = window.ffmpeg.start(
         opener=opener_for(make_archive()), dest_dir=tmp_path, platform="win32"
     )
-    qtbot.waitUntil(lambda: task not in window._tasks, timeout=10_000)
-    assert window.video_option.isEnabled()
-    assert window.ffprobe is not None and window.ffprobe.name == "ffprobe.exe"
-    assert not window.banner.isVisibleTo(window)
+    qtbot.waitUntil(lambda: not window.context.running(type(task)), timeout=10_000)
+    assert video.isEnabled()
+    ffprobe = window.context.ffprobe
+    assert ffprobe is not None and ffprobe.name == "ffprobe.exe"
+    assert not window.organize.ffmpeg_notice.isVisibleTo(window)
+    assert not window.settings_page.install_button.isVisibleTo(window)
     assert [kind for kind, _ in message_boxes] == ["information"]  # exactly one success box

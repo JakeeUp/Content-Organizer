@@ -1,13 +1,13 @@
-"""Chronological monthly distribution chart (smooth area line, clickable points).
+"""Monthly distribution as a single-accent bar chart.
 
-Fixes from the legacy ``WaveChart``: points are ``(year, month)`` buckets in time order
-(no alphabetical months, no merged years), the curve never overshoots its data,
-the nearest point wins hover/click, and it is keyboard accessible (Left/Right + Enter).
+Months are ``(year, month)`` buckets in time order; gaps inside the range are shown as
+empty months so the time axis stays honest. Years are separated by a hairline and a
+label. Hover highlights a bar and shows a tooltip; click, or Left/Right then Enter,
+emits :attr:`MonthlyChart.monthClicked`.
 """
 
 from __future__ import annotations
 
-import itertools
 import math
 from collections.abc import Sequence
 
@@ -29,11 +29,12 @@ from content_organizer.rules import MONTH_NAMES
 
 YearMonth = tuple[int, int]
 
-_MARGIN_LEFT = 40.0
-_MARGIN_RIGHT = 20.0
-_MARGIN_TOP = 28.0
-_MARGIN_BOTTOM = 46.0
-_MIN_LABEL_SPACING = 46.0
+_LEFT = 36.0
+_RIGHT = 8.0
+_TOP = 26.0
+_BOTTOM = 44.0
+_MAX_BAR = 34.0
+_MAX_FILLED_MONTHS = 240
 
 
 def month_label(key: YearMonth) -> str:
@@ -41,8 +42,38 @@ def month_label(key: YearMonth) -> str:
     return f"{MONTH_NAMES[month - 1]} {year}"
 
 
+def _month_index(key: YearMonth) -> int:
+    return key[0] * 12 + key[1] - 1
+
+
+def fill_gaps(series: Sequence[tuple[YearMonth, int]]) -> list[tuple[YearMonth, int]]:
+    """Sort chronologically and insert zero months between the first and last month."""
+    data = sorted(series)
+    if len(data) < 2:
+        return data
+    first, last = _month_index(data[0][0]), _month_index(data[-1][0])
+    if last - first >= _MAX_FILLED_MONTHS:
+        return data
+    counts = dict(data)
+    return [
+        ((i // 12, i % 12 + 1), counts.get((i // 12, i % 12 + 1), 0))
+        for i in range(first, last + 1)
+    ]
+
+
+def _nice_ceiling(value: int) -> int:
+    """Round ``value`` up to 1, 2, 2.5 or 5 times a power of ten."""
+    if value <= 4:
+        return max(1, value)
+    exponent = 10 ** math.floor(math.log10(value))
+    for step in (1, 2, 2.5, 5, 10):
+        if value <= step * exponent:
+            return int(step * exponent)
+    return value
+
+
 class MonthlyChart(QWidget):
-    """Plots ``[((year, month), count), ...]``; emits :attr:`monthClicked` on a point."""
+    """Bars for ``[((year, month), count), ...]``; emits :attr:`monthClicked`."""
 
     monthClicked = pyqtSignal(int, int)  # year, month
 
@@ -53,12 +84,13 @@ class MonthlyChart(QWidget):
         self._empty_text = "No data yet"
         self.setMouseTracking(True)
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
-        self.setMinimumHeight(190)
+        self.setMinimumHeight(180)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.setAccessibleName("Monthly distribution chart")
+        theme.manager().changed.connect(self.update)
 
     def sizeHint(self) -> QSize:
-        return QSize(420, 240)
+        return QSize(520, 260)
 
     # ------------------------------------------------------------------ data
 
@@ -67,8 +99,7 @@ class MonthlyChart(QWidget):
         return list(self._series)
 
     def set_series(self, series: Sequence[tuple[YearMonth, int]], empty_text: str = "") -> None:
-        """Set the data; it is sorted chronologically regardless of input order."""
-        self._series = sorted(series)
+        self._series = fill_gaps(series)
         self._hover = -1
         if empty_text:
             self._empty_text = empty_text
@@ -78,39 +109,56 @@ class MonthlyChart(QWidget):
     def hover_index(self) -> int:
         return self._hover
 
+    def index_of(self, year: int, month: int) -> int:
+        keys = [key for key, _ in self._series]
+        return keys.index((year, month)) if (year, month) in keys else -1
+
     # -------------------------------------------------------------- geometry
 
     def _plot_rect(self) -> QRectF:
         return QRectF(
-            _MARGIN_LEFT,
-            _MARGIN_TOP,
-            max(1.0, self.width() - _MARGIN_LEFT - _MARGIN_RIGHT),
-            max(1.0, self.height() - _MARGIN_TOP - _MARGIN_BOTTOM),
+            _LEFT,
+            _TOP,
+            max(1.0, self.width() - _LEFT - _RIGHT),
+            max(1.0, self.height() - _TOP - _BOTTOM),
         )
 
-    def point_positions(self) -> list[QPointF]:
-        """Widget coordinates of every data point (public for tests)."""
+    def _scale_max(self) -> int:
+        return _nice_ceiling(max((count for _, count in self._series), default=0))
+
+    def _slot(self) -> float:
+        return self._plot_rect().width() / max(1, len(self._series))
+
+    def bar_rects(self) -> list[QRectF]:
+        """Widget rectangles of every bar (zero-height bars included; public for tests)."""
         if not self._series:
             return []
         plot = self._plot_rect()
-        peak = max(count for _, count in self._series) or 1
-        n = len(self._series)
-        points = []
+        slot = self._slot()
+        width = max(2.0, min(_MAX_BAR, slot * 0.62))
+        peak = self._scale_max()
+        rects = []
         for i, (_, count) in enumerate(self._series):
-            x = plot.center().x() if n == 1 else plot.left() + plot.width() * i / (n - 1)
-            y = plot.bottom() - plot.height() * count / peak
-            points.append(QPointF(x, y))
-        return points
+            cx = plot.left() + slot * (i + 0.5)
+            height = plot.height() * count / peak
+            if count:
+                height = max(height, 2.0)
+            rects.append(QRectF(cx - width / 2, plot.bottom() - height, width, height))
+        return rects
+
+    def bar_centers(self) -> list[QPointF]:
+        """A clickable point inside each bar's column (bottom area of the plot)."""
+        plot = self._plot_rect()
+        return [QPointF(r.center().x(), plot.bottom() - 4) for r in self.bar_rects()]
 
     def index_at(self, x: float) -> int:
-        """Index of the point nearest to ``x`` within half the point spacing, else -1."""
-        points = self.point_positions()
-        if not points:
+        """Index of the month column under ``x``, else -1."""
+        if not self._series:
             return -1
-        spacing = self._plot_rect().width() / max(1, len(points) - 1)
-        reach = max(14.0, spacing / 2)
-        best = min(range(len(points)), key=lambda i: abs(points[i].x() - x))
-        return best if abs(points[best].x() - x) <= reach else -1
+        plot = self._plot_rect()
+        if not plot.left() <= x <= plot.right():
+            return -1
+        return min(len(self._series) - 1, int((x - plot.left()) / self._slot()))
 
     # ---------------------------------------------------------------- events
 
@@ -120,10 +168,11 @@ class MonthlyChart(QWidget):
         self._set_hover(self.index_at(event.position().x()))
         if self._hover >= 0:
             key, count = self._series[self._hover]
+            hint = "Click to open this month's folder" if count else "No files this month"
             QToolTip.showText(
                 event.globalPosition().toPoint(),
-                f"{month_label(key)}: {count:,} file{'s' if count != 1 else ''}\n"
-                "Click to open this month's folder",
+                f"<b>{month_label(key)}</b><br>{count:,} file{'s' if count != 1 else ''}"
+                f"<br><span style='color:{theme.current().text_faint}'>{hint}</span>",
                 self,
             )
         else:
@@ -149,10 +198,15 @@ class MonthlyChart(QWidget):
             step = 1 if key == Qt.Key.Key_Right else -1
             start = self._hover if self._hover >= 0 else (-1 if step > 0 else len(self._series))
             self._set_hover(min(len(self._series) - 1, max(0, start + step)))
+        elif key in (Qt.Key.Key_Home, Qt.Key.Key_End):
+            self._set_hover(0 if key == Qt.Key.Key_Home else len(self._series) - 1)
         elif key in (Qt.Key.Key_Return, Qt.Key.Key_Enter, Qt.Key.Key_Space) and self._hover >= 0:
             self._activate(self._hover)
         else:
             super().keyPressEvent(event)
+
+    def set_hover(self, index: int) -> None:
+        self._set_hover(index)
 
     def _set_hover(self, index: int) -> None:
         if index != self._hover:
@@ -168,131 +222,117 @@ class MonthlyChart(QWidget):
 
     # -------------------------------------------------------------- painting
 
+    def _font(self, scale: float = 1.0, bold: bool = False) -> QFont:
+        font = QFont(self.font())
+        font.setPixelSize(max(9, round(theme.FONT_CAPTION * scale)))
+        font.setBold(bold)
+        return font
+
     def paintEvent(self, event: QPaintEvent | None) -> None:
+        p = theme.current()
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         if not self._series:
-            self._paint_empty(painter)
+            painter.setFont(self._font(1.1))
+            painter.setPen(QColor(p.text_muted))
+            painter.drawText(
+                QRectF(self.rect()).adjusted(20, 0, -20, 0),
+                int(Qt.AlignmentFlag.AlignCenter | Qt.TextFlag.TextWordWrap),
+                self._empty_text,
+            )
         else:
-            points = self.point_positions()
-            self._paint_grid(painter)
-            self._paint_area(painter, points)
-            self._paint_points(painter, points)
-            self._paint_labels(painter, points)
+            rects = self.bar_rects()
+            self._paint_grid(painter, p)
+            self._paint_years(painter, p, rects)
+            self._paint_bars(painter, p, rects)
+            self._paint_month_labels(painter, p, rects)
         if self.hasFocus():
-            painter.setPen(QPen(QColor(theme.BORDER), 1, Qt.PenStyle.DashLine))
+            painter.setPen(QPen(p.qcolor("accent", 0.6), 1.2))
             painter.setBrush(Qt.BrushStyle.NoBrush)
             painter.drawRoundedRect(QRectF(self.rect()).adjusted(1, 1, -1, -1), 8, 8)
         painter.end()
 
-    def _paint_empty(self, painter: QPainter) -> None:
-        font = QFont(self.font())
-        font.setPointSizeF(font.pointSizeF() * 1.15)
-        painter.setFont(font)
-        painter.setPen(QColor(theme.TEXT_MUTED))
-        painter.drawText(
-            QRectF(self.rect()).adjusted(20, 0, -20, 0),
-            int(Qt.AlignmentFlag.AlignCenter | Qt.TextFlag.TextWordWrap),
-            self._empty_text,
-        )
-
-    def _paint_grid(self, painter: QPainter) -> None:
+    def _paint_grid(self, painter: QPainter, p: theme.Palette) -> None:
         plot = self._plot_rect()
-        peak = max(count for _, count in self._series) or 1
-        font = QFont(self.font())
-        font.setPointSizeF(font.pointSizeF() * 0.82)
-        painter.setFont(font)
-        for fraction in (0.0, 0.5, 1.0):
-            y = plot.bottom() - plot.height() * fraction
-            painter.setPen(QPen(QColor(theme.BORDER), 1, Qt.PenStyle.DotLine))
+        peak = self._scale_max()
+        painter.setFont(self._font(0.92))
+        for fraction in (0.0, 0.25, 0.5, 0.75, 1.0):
+            y = round(plot.bottom() - plot.height() * fraction) + 0.5
+            painter.setPen(QPen(QColor(p.border if fraction else p.border_strong), 1))
             painter.drawLine(QPointF(plot.left(), y), QPointF(plot.right(), y))
-            painter.setPen(QColor(theme.TEXT_FAINT))
-            painter.drawText(
-                QRectF(0, y - 9, _MARGIN_LEFT - 8, 18),
-                int(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter),
-                f"{round(peak * fraction):,}",
-            )
-
-    def _curve(self, points: list[QPointF]) -> QPainterPath:
-        """Smooth path whose control points share the endpoints' y: never overshoots."""
-        path = QPainterPath(points[0])
-        for a, b in itertools.pairwise(points):
-            mid = (a.x() + b.x()) / 2
-            path.cubicTo(QPointF(mid, a.y()), QPointF(mid, b.y()), b)
-        return path
-
-    def _paint_area(self, painter: QPainter, points: list[QPointF]) -> None:
-        plot = self._plot_rect()
-        gradient = theme.horizontal_gradient(plot.left(), plot.right())
-        if len(points) == 1:
-            return
-        line = self._curve(points)
-        area = QPainterPath(line)
-        area.lineTo(points[-1].x(), plot.bottom())
-        area.lineTo(points[0].x(), plot.bottom())
-        area.closeSubpath()
-        painter.save()
-        painter.setOpacity(0.22)
-        painter.fillPath(area, gradient)
-        painter.restore()
-        pen = QPen()
-        pen.setBrush(gradient)
-        pen.setWidthF(3.0)
-        pen.setCapStyle(Qt.PenCapStyle.RoundCap)
-        pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
-        painter.setPen(pen)
-        painter.setBrush(Qt.BrushStyle.NoBrush)
-        painter.drawPath(line)
-
-    def _paint_points(self, painter: QPainter, points: list[QPointF]) -> None:
-        plot = self._plot_rect()
-        n = len(points)
-        dense = n > 40
-        for i, point in enumerate(points):
-            color = theme.gradient_color((point.x() - plot.left()) / max(1.0, plot.width()))
-            if i == self._hover:
-                painter.setPen(QPen(QColor(theme.TEXT_FAINT), 1, Qt.PenStyle.DashLine))
-                painter.drawLine(QPointF(point.x(), point.y()), QPointF(point.x(), plot.bottom()))
-                painter.setPen(QPen(QColor("white"), 2))
-                painter.setBrush(color)
-                painter.drawEllipse(point, 7.5, 7.5)
-                self._paint_value(painter, point, self._series[i][1])
-            elif not dense:
-                painter.setPen(QPen(QColor(theme.CARD), 2))
-                painter.setBrush(color)
-                painter.drawEllipse(point, 5.0, 5.0)
-
-    def _paint_value(self, painter: QPainter, point: QPointF, value: int) -> None:
-        font = QFont(self.font())
-        font.setBold(True)
-        painter.setFont(font)
-        painter.setPen(QColor(theme.TEXT))
-        rect = QRectF(point.x() - 40, point.y() - 28, 80, 18)
-        painter.drawText(rect, Qt.AlignmentFlag.AlignCenter, f"{value:,}")
-
-    def _paint_labels(self, painter: QPainter, points: list[QPointF]) -> None:
-        plot = self._plot_rect()
-        n = len(points)
-        spacing = plot.width() / max(1, n - 1)
-        step = max(1, math.ceil(_MIN_LABEL_SPACING / spacing)) if n > 1 else 1
-        font = QFont(self.font())
-        font.setPointSizeF(font.pointSizeF() * 0.85)
-        painter.setFont(font)
-        last_year: int | None = None
-        for i in range(0, n, step):
-            (year, month), _ = self._series[i]
-            x = points[i].x()
-            painter.setPen(QColor(theme.TEXT_MUTED if i != self._hover else theme.TEXT))
-            painter.drawText(
-                QRectF(x - 24, plot.bottom() + 8, 48, 16),
-                Qt.AlignmentFlag.AlignCenter,
-                MONTH_NAMES[month - 1][:3],
-            )
-            if year != last_year:
-                painter.setPen(QColor(theme.TEXT_FAINT))
+            if fraction in (0.0, 0.5, 1.0):
+                painter.setPen(QColor(p.text_faint))
                 painter.drawText(
-                    QRectF(x - 24, plot.bottom() + 24, 48, 16),
-                    Qt.AlignmentFlag.AlignCenter,
-                    str(year),
+                    QRectF(0, y - 9, _LEFT - 10, 18),
+                    int(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter),
+                    f"{round(peak * fraction):,}",
                 )
-                last_year = year
+
+    def _paint_years(self, painter: QPainter, p: theme.Palette, rects: list[QRectF]) -> None:
+        """A hairline before each January (when the range spans years) plus year labels."""
+        plot = self._plot_rect()
+        slot = self._slot()
+        painter.setFont(self._font(0.92, bold=True))
+        years_seen: set[int] = set()
+        for i, ((year, _month), _) in enumerate(self._series):
+            if year in years_seen:
+                continue
+            years_seen.add(year)
+            x = plot.left() + slot * i
+            if i > 0:
+                painter.setPen(QPen(QColor(p.border_strong), 1, Qt.PenStyle.DashLine))
+                painter.drawLine(QPointF(x, plot.top() - 18), QPointF(x, plot.bottom()))
+            painter.setPen(QColor(p.text_muted))
+            painter.drawText(
+                QRectF(x + 6, plot.top() - 24, 80, 16),
+                int(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter),
+                str(year),
+            )
+
+    def _paint_bars(self, painter: QPainter, p: theme.Palette, rects: list[QRectF]) -> None:
+        hovering = self._hover >= 0
+        for i, rect in enumerate(rects):
+            if rect.height() <= 0:
+                continue
+            if i == self._hover:
+                color = p.qcolor("accent_hover")
+            else:
+                color = p.qcolor("accent", 0.45 if hovering else 0.85)
+            radius = min(4.0, rect.width() / 2, rect.height())
+            path = QPainterPath()
+            path.addRoundedRect(rect.adjusted(0, 0, 0, radius), radius, radius)
+            painter.save()
+            painter.setClipRect(rect)
+            painter.fillPath(path, color)
+            painter.restore()
+        if hovering:
+            self._paint_value(painter, p, rects[self._hover], self._series[self._hover][1])
+
+    def _paint_value(self, painter: QPainter, p: theme.Palette, rect: QRectF, value: int) -> None:
+        painter.setFont(self._font(1.0, bold=True))
+        text = f"{value:,}"
+        width = painter.fontMetrics().horizontalAdvance(text) + 14
+        box = QRectF(rect.center().x() - width / 2, rect.top() - 26, width, 20)
+        box.moveLeft(max(0.0, min(box.left(), self.width() - width)))
+        painter.setPen(QPen(QColor(p.border_strong), 1))
+        painter.setBrush(QColor(p.raised))
+        painter.drawRoundedRect(box, 6, 6)
+        painter.setPen(QColor(p.text))
+        painter.drawText(box, Qt.AlignmentFlag.AlignCenter, text)
+
+    def _paint_month_labels(self, painter: QPainter, p: theme.Palette, rects: list[QRectF]) -> None:
+        plot = self._plot_rect()
+        slot = self._slot()
+        painter.setFont(self._font(0.92))
+        widest = painter.fontMetrics().horizontalAdvance("Mmm") + 10
+        step = max(1, math.ceil(widest / slot))
+        for i, ((_year, month), _) in enumerate(self._series):
+            if i != self._hover and (month - 1) % step:
+                continue
+            x = rects[i].center().x()
+            hovered = i == self._hover
+            painter.setPen(QColor(p.text if hovered else p.text_faint))
+            text = MONTH_NAMES[month - 1][:3] if step < 3 or hovered else MONTH_NAMES[month - 1][0]
+            painter.drawText(
+                QRectF(x - 24, plot.bottom() + 8, 48, 16), Qt.AlignmentFlag.AlignCenter, text
+            )

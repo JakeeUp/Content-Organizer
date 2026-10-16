@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Changed
+
+- **Redesigned desktop app**: a sidebar with Organize, Library, Review and Settings pages (Ctrl+1–4) that collapses to icons on narrow windows, with a review-count badge and a video-analysis status line.
+- **Light and dark themes** with a System option that follows the OS, chosen in Settings and applied without a restart. All colours come from one palette, and icons follow the theme.
+- **Review** is now a page instead of a modal dialog, with a larger image preview and file-type tiles for everything else.
+- **Library** page with summary tiles, a monthly bar chart and a per-category breakdown, replacing the ring chart and category bars.
+- **Organize** page lists recent runs with **Undo latest**; the preview filters by category chips and shows a destination folder per file.
+
 ## [2.0.0] - 2026-10-12
 
 A ground-up rewrite. The tool is now a tested Python package with a Qt-free core, a CLI, and a rebuilt GUI. The focus is safety (preview, undo, no overwrites) and correct vertical/horizontal detection.

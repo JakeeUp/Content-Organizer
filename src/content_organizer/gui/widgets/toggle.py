@@ -20,13 +20,17 @@ from PyQt6.QtWidgets import QAbstractButton, QHBoxLayout, QLabel, QVBoxLayout, Q
 
 from content_organizer.gui import theme
 
-_ON = QColor(theme.SUCCESS)
-_OFF = QColor("#3A4256")
-_DISABLED = QColor("#2A3244")
+
+def _mix(a: QColor, b: QColor, t: float) -> QColor:
+    return QColor(
+        round(a.red() + (b.red() - a.red()) * t),
+        round(a.green() + (b.green() - a.green()) * t),
+        round(a.blue() + (b.blue() - a.blue()) * t),
+    )
 
 
 class ToggleSwitch(QAbstractButton):
-    """A 46x26 switch; the thumb slides when the checked state changes."""
+    """A 36x20 switch; the thumb slides when the checked state changes."""
 
     def __init__(self, parent: QWidget | None = None, *, checked: bool = False) -> None:
         super().__init__(parent)
@@ -39,9 +43,10 @@ class ToggleSwitch(QAbstractButton):
         self._animation.setDuration(160)
         self._animation.setEasingCurve(QEasingCurve.Type.OutCubic)
         self.toggled.connect(self._animate_to)
+        theme.manager().changed.connect(self.update)
 
     def sizeHint(self) -> QSize:
-        return QSize(46, 26)
+        return QSize(40, 24)
 
     def minimumSizeHint(self) -> QSize:
         return self.sizeHint()
@@ -76,35 +81,31 @@ class ToggleSwitch(QAbstractButton):
         return self.rect().contains(pos)
 
     def paintEvent(self, event: QPaintEvent | None) -> None:
+        p = theme.current()
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        w, h = 46.0, 26.0
+        w, h = 36.0, 20.0
         x0 = (self.width() - w) / 2
         y0 = (self.height() - h) / 2
         track = QRectF(x0, y0, w, h)
-
+        on, off = QColor(p.accent), QColor(p.border_strong)
+        color = _mix(off, on, self._offset)
         if not self.isEnabled():
-            color = _DISABLED
-        else:
-            color = QColor(
-                round(_OFF.red() + (_ON.red() - _OFF.red()) * self._offset),
-                round(_OFF.green() + (_ON.green() - _OFF.green()) * self._offset),
-                round(_OFF.blue() + (_ON.blue() - _OFF.blue()) * self._offset),
-            )
+            color = QColor(p.track)
         painter.setPen(Qt.PenStyle.NoPen)
         painter.setBrush(color)
         painter.drawRoundedRect(track, h / 2, h / 2)
 
         if self.hasFocus():
-            painter.setPen(QPen(QColor(theme.ACCENT_HOVER), 2))
+            painter.setPen(QPen(QColor(p.accent_text), 1.5))
             painter.setBrush(Qt.BrushStyle.NoBrush)
-            painter.drawRoundedRect(track.adjusted(-2, -2, 2, 2), h / 2 + 2, h / 2 + 2)
+            painter.drawRoundedRect(track.adjusted(-2.5, -2.5, 2.5, 2.5), h / 2 + 2.5, h / 2 + 2.5)
 
-        margin = 3.0
+        margin = 2.5
         diameter = h - 2 * margin
         thumb_x = x0 + margin + (w - diameter - 2 * margin) * self._offset
         painter.setPen(Qt.PenStyle.NoPen)
-        painter.setBrush(QColor("#FFFFFF") if self.isEnabled() else QColor("#6B7280"))
+        painter.setBrush(QColor("#FFFFFF") if self.isEnabled() else QColor(p.text_faint))
         painter.drawEllipse(QRectF(thumb_x, y0 + margin, diameter, diameter))
         painter.end()
 
@@ -125,14 +126,14 @@ class ToggleRow(QWidget):
     ) -> None:
         super().__init__(parent)
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(0, 4, 0, 4)
+        layout.setContentsMargins(0, 2, 0, 2)
         layout.setSpacing(12)
         texts = QVBoxLayout()
         texts.setSpacing(1)
         self.title_label = QLabel(title)
-        self.title_label.setObjectName("fieldLabel")
+        self.title_label.setProperty("role", "strong")
         self.description_label = QLabel(description)
-        self.description_label.setObjectName("hint")
+        self.description_label.setProperty("role", "caption")
         self.description_label.setWordWrap(True)
         texts.addWidget(self.title_label)
         texts.addWidget(self.description_label)
